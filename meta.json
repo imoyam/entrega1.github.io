@@ -1,0 +1,7 @@
+{
+  "min_year": 1995,
+  "max_year": 2020,
+  "change_years": [2009, 2019],
+  "method_change_detection": "simple-year-diff-threshold",
+  "threshold": 23.286637
+}
