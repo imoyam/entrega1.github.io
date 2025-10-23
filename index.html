@@ -43,7 +43,7 @@ async function init(){
 
   const layout = {
     title: 'Número de olas de calor por año - RM',
-    xaxis: {title:'Año',range :[200,2020], rangeslider: {visible:true}},
+    xaxis: {title:'Año',range :[1995,2020], rangeslider: {visible:true}},
     yaxis: {title:'Cantidad de olas de calor'},
     shapes: [{ type:'line', x0:2009, x1:2009, xref:'x', y0:0, y1:1, yref:'paper', line:{color:'red', width:2, dash:'dash'} }],
     hovermode: 'closest'
@@ -71,19 +71,40 @@ async function init(){
     }
   };
 
-  // Sonificación simple con Tone.js: pitch mapeada a heatwaves
+  // Sonificación  un poco más avanzada con Tone.js: pitch mapeada a heatwaves
+
+
   document.getElementById('sonify').onclick = async () => {
-    const minv = Math.min(...y), maxv = Math.max(...y);
-    const synth = new Tone.Synth().toDestination();
-    await Tone.start();
-    for (let v of y){
-      const norm = (v - minv)/(maxv - minv);
-      const midi = 48 + Math.round(norm*24);
-      const freq = Tone.Frequency(midi, 'midi').toFrequency();
-      synth.triggerAttackRelease(freq, '8n');
-      await new Promise(r=>setTimeout(r, 150));
+  const minv = Math.min(...y), maxv = Math.max(...y);
+  const synth = new Tone.Synth({ oscillator: { type: 'triangle' } }).toDestination();
+  const bell = new Tone.MetalSynth().toDestination();
+  const panVol = new Tone.PanVol(-1, 0).toDestination();
+  synth.connect(panVol);
+
+  await Tone.start();
+
+  for (let i = 0; i < y.length; i++) {
+    const v = y[i];
+    const norm = (v - minv) / (maxv - minv);
+    const midi = 48 + Math.round(norm * 24);
+    const freq = Tone.Frequency(midi, 'midi').toFrequency();
+
+    // paneo y volumen
+    panVol.pan.value = (i / y.length) * 2 - 1;
+    synth.volume.value = -12 + norm * 12;
+
+    // tocar nota
+    synth.triggerAttackRelease(freq, '8n');
+
+    // si hay quiebre → campanita
+    if (meta.change_years.includes(x[i])) {
+      bell.triggerAttackRelease('C5', '16n');
     }
-  };
+
+    await new Promise(r => setTimeout(r, 200));
+  }
+};
+
 
   // grid toggle
   document.getElementById('showGrid').onchange = (e) => {
