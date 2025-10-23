@@ -43,7 +43,7 @@ async function init(){
 
   const layout = {
     title: 'Número de olas de calor por año - RM',
-    xaxis: {title:'Año', rangeslider: {visible:true}},
+    xaxis: {title:'Año',range :[200,2020], rangeslider: {visible:true}},
     yaxis: {title:'Cantidad de olas de calor'},
     shapes: [{ type:'line', x0:2009, x1:2009, xref:'x', y0:0, y1:1, yref:'paper', line:{color:'red', width:2, dash:'dash'} }],
     hovermode: 'closest'
