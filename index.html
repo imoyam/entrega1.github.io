@@ -130,13 +130,13 @@ async function init() {
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.3 }
       }).toDestination();
 
-      bell = new Tone.FMSynth({
+      bell = new Tone.MetalSynth({
         frequency: 400,
+        envelope: { attack: 0.001, decay: 0.1, release: 0.2 },
         harmonicity: 5.1,
-        modulationIndex: 10,
-        envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.2 },
-        modulation: { type: 'square' }
-        
+        modulationIndex: 32,
+        resonance: 4000,
+        octaves: 1.5
         
       }).toDestination();
 
@@ -155,6 +155,8 @@ async function init() {
         const freq = 110 * Math.pow(2, norm * 3);
         const vol = -18 + norm * 10;
         synth.volume.value = vol;
+        
+        
         synth.triggerAttackRelease(freq, "8n");
 
         if (meta.change_years.includes(x[i])) {
