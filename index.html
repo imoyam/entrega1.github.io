@@ -51,65 +51,96 @@ async function init(){
 
   await Plotly.newPlot('chart', [trace], layout, {responsive:true});
 
-  // toggle change points
+  //toggle change points
   let showCP = false;
-  document.getElementById('toggleCP').onclick = () => {
+  let baseShapes = layout.shapes ? [...layout.shapes] : [];
+  let cpShapes = [];
+
+  // construimos las líneas de quiebres una sola vez
+  const cpYears = meta.change_years || [];
+  cpShapes = cpYears.map(y => ({
+    type: 'line',
+    x0: y,
+    x1: y,
+    xref: 'x',
+    y0: 0,
+    y1: 1,
+    yref: 'paper',
+    line: { color: 'orange', dash: 'dot', width: 2 }
+  }));
+
+  const btn = document.getElementById('toggleCP');
+  btn.onclick = () => {
     showCP = !showCP;
-    const cpYears = meta.change_years || [];
-    const cpShapes = cpYears.map(y => ({ type:'line', x0:y, x1:y, xref:'x', y0:0, y1:1, yref:'paper', line:{color:'orange', dash:'dot', width:2} }));
-    const baseShapes = layout.shapes || [];
-    const newShapes = showCP ? baseShapes.concat(cpShapes) : baseShapes;
-    Plotly.relayout('chart', {shapes:newShapes});
-  };
 
-  // Play animation: highlight points sequentially
-  document.getElementById('play').onclick = async () => {
-    for (let i=0;i<x.length;i++){
-      const sizes = x.map((_,j)=> j===i?14:8);
-      await Plotly.restyle('chart', {'marker.size':[sizes]}, [0]);
-      await new Promise(r=>setTimeout(r, 150));
+    if (showCP) {
+      // Muestra los quiebres (agrega las líneas)
+      Plotly.relayout('chart', { shapes: baseShapes.concat(cpShapes) });
+      btn.textContent = "Ocultar quiebres";
+    } else {
+      // Oculta los quiebres (vuelve al estado base)
+      Plotly.relayout('chart', { shapes: baseShapes });
+      btn.textContent = "Mostrar quiebres";
     }
   };
 
-  // Sonificación  un poco más avanzada con Tone.js: pitch mapeada a heatwaves
+  //pitch con waves
 
 
-  document.getElementById('sonify').onclick = async () => {
-  const minv = Math.min(...y), maxv = Math.max(...y);
-  const synth = new Tone.Synth({ oscillator: { type: 'triangle' } }).toDestination();
-  const bell = new Tone.MetalSynth().toDestination();
-  const panVol = new Tone.PanVol(-1, 0).toDestination();
-  synth.connect(panVol);
+   document.getElementById('sonify').onclick = async () => {
+    const minv = Math.min(...y);
+    const maxv = Math.max(...y);
 
-  await Tone.start();
+    // sintetizador base con un timbre suave
+    const synth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.3 }
+    }).toDestination();
 
-  for (let i = 0; i < y.length; i++) {
-    const v = y[i];
-    const norm = (v - minv) / (maxv - minv);
-    const midi = 48 + Math.round(norm * 24);
-    const freq = Tone.Frequency(midi, 'midi').toFrequency();
+    // campana metálica para quiebres
+    const bell = new Tone.MetalSynth({
+      frequency: 400,
+      envelope: { attack: 0.001, decay: 0.1, release: 0.2 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5
+    }).toDestination();
 
-    // paneo y volumen
-    panVol.pan.value = (i / y.length) * 2 - 1;
-    synth.volume.value = -12 + norm * 12;
+    // efectos opcionales
+    const reverb = new Tone.Reverb({ decay: 2, wet: 0.3 }).toDestination();
+    synth.connect(reverb);
 
-    // tocar nota
-    synth.triggerAttackRelease(freq, '8n');
+    await Tone.start();
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.start();
 
-    // si hay quiebre → campanita
-    if (meta.change_years.includes(x[i])) {
-      bell.triggerAttackRelease('C5', '16n');
+    for (let i = 0; i < y.length; i++) {
+      const v = y[i];
+      const year = x[i];
+
+      // normalizamos valor (0-1)
+      const norm = (v - minv) / (maxv - minv);
+
+      // tono: va de grave (A2=110Hz) a agudo (A5=880Hz)
+      const freq = 110 * Math.pow(2, norm * 3);
+
+      // volumen: más alto si hay más olas
+      const vol = -18 + norm * 10;
+      synth.volume.value = vol;
+
+      // reproducir nota
+      synth.triggerAttackRelease(freq, "8n");
+
+      // si el año es quiebre, toca campana brillante
+      if (meta.change_years.includes(year)) {
+        bell.triggerAttackRelease("C6", "16n", "+0.05");
+      }
+
+      // esperar un poco antes del siguiente año
+      await new Promise(r => setTimeout(r, 250));
     }
-
-    await new Promise(r => setTimeout(r, 200));
-  }
-};
-
-
-  // grid toggle
-  document.getElementById('showGrid').onchange = (e) => {
-    const show = e.target.checked;
-    Plotly.relayout('chart', {'yaxis.showgrid': show, 'xaxis.showgrid': false});
   };
 }
 
