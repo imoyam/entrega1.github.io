@@ -131,13 +131,16 @@ async function init() {
       }).toDestination();
 
       bell = new Tone.FMSynth({
-        harmonicity: 3,
+        frequency: 400,
+        harmonicity: 5.1,
         modulationIndex: 10,
         envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.2 },
         modulation: { type: 'square' }
+        
+        
       }).toDestination();
 
-      const reverb = new Tone.Reverb({ decay: 2, wet: 0.25 }).toDestination();
+      const reverb = new Tone.Reverb({ decay: 2, wet: 0.3 }).toDestination();
       synth.connect(reverb);
       await Tone.start();
     }
@@ -149,7 +152,9 @@ async function init() {
       if (withSound) {
         const v = y[i];
         const norm = (v - minv) / (maxv - minv);
-        const freq = 130 * Math.pow(2, norm * 2.5);
+        const freq = 110 * Math.pow(2, norm * 3);
+        const vol = -18 + norm * 10;
+        synth.volume.value = vol;
         synth.triggerAttackRelease(freq, "8n");
 
         if (meta.change_years.includes(x[i])) {
