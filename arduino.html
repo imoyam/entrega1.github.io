@@ -45,7 +45,7 @@
       // Evento que se activa al recibir datos
       Protobject.Core.onReceived((data) => {
         // Calcula la nueva velocidad objetivo a partir de los datos recibidos
-        cantidad = parseInt(data.cant) * 30.4 + 100;
+        cantidad = parseInt(data.cant) * 16.3 + 100;
 
         // Si la cantidad recibida es 0, detiene el servo continuo. Solo por si acaso
         if (data.cant == 0) {
@@ -54,7 +54,7 @@
         // Si hay olas de cakir, mueve el servo gradualmente y ajusta la velocidad del servo continuo
         else {
           smoothUpdateServo(cantidad); // Actualiza la velocidad de forma gradual
-          let olas=(data.cant) * 30.4 + 100
+          let olas=(data.cant) * 16.3 + 100
           console.log(olas)
           Protobject.Arduino.contServoWrite({ pin: 6, value: olas });
         }
