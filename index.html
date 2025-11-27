@@ -107,8 +107,6 @@
         transform: none;
         box-shadow: none;
       }
-
-      /* Footer mejorado con explicación metodológica */
       footer {
         margin-top: 40px;
         font-size: 0.75rem;
@@ -140,7 +138,7 @@
 
     <header>
       <h1>Ciclos de Calor</h1>
-      <p class="intro">Evolución de eventos extremos en la Región Metropolitana (1995-2020)</p>
+      <p class="intro">Evolución de olas de calor extremas en la Región Metropolitana (1995-2020)</p>
     </header>
 
     <div id="chart-wrapper">
@@ -158,13 +156,10 @@
     </footer>
 
     <script>
-      // --- CONFIGURACIÓN ---
       const DATA_FILE = 'heatwaves_timeseries.json';
       const STEP_DURATION = 3000; 
       const MIN_VAL = 3; 
       const MAX_VAL = 50; 
-
-      // --- AUDIO ENGINE ---
       let windNoise, windFilter, windVol;
 
       function setupAudio() {
@@ -188,8 +183,6 @@
         windFilter.frequency.rampTo(targetFreq, STEP_DURATION / 1000);
         windVol.volume.rampTo(targetVol, STEP_DURATION / 1000);
       }
-
-      // --- VISUALIZACIÓN ---
       async function main() {
         const response = await fetch(DATA_FILE);
         const data = await response.json();
@@ -200,28 +193,20 @@
         const maxVal = Math.max(...y);
         const maxIndex = y.indexOf(maxVal);
         const maxYear = x[maxIndex];
-
-        // 1. CÁLCULO DE PROMEDIO PARA EXPLICACIÓN
         const sum = y.reduce((a, b) => a + b, 0);
         const avg = parseFloat((sum / y.length).toFixed(1));
-
-        // 2. ACTUALIZAR EXPLICACIÓN EN FOOTER (CLARIDAD PARA EL USUARIO)
         const footerText = document.getElementById('method-text');
         footerText.innerHTML = `
           Definición de ola de calor según percentil 90 de temperaturas máximas diarias.<br>
           <span class="methodology-note">
-            Nota: El porcentaje de variación se calcula respecto al <strong>promedio histórico de ${avg} eventos</strong> por año.
+            Nota: El porcentaje de variación se calcula respecto al <strong>promedio histórico de ${avg} olas de calor</strong> por año.
           </span>
         `;
-
-        // 3. GENERAR TEXTOS INFORMATIVOS
         const customTexts = y.map(val => {
             const diff = ((val - avg) / avg) * 100;
             const diffStr = diff > 0 ? `+${diff.toFixed(0)}%` : `${diff.toFixed(0)}%`;
             
             let status = val > 30 ? "🔥 CRÍTICO" : (val > 18 ? "⚠️ ALTO" : "✅ NORMAL");
-            
-            // Texto del tooltip mejorado
             return `Promedio Histórico (${avg}):<br>Variación: <b>${diffStr}</b><br><br><span style='font-size:14px; font-weight:bold;'>${status}</span>`;
         });
 
@@ -232,8 +217,8 @@
           text: customTexts,
           hovertemplate: 
             '<b>AÑO %{x}</b><br>' +
-            'Eventos: <b style="font-size:16px; color:#d35400;">%{y}</b><br>' +
-            '<i>vs Promedio Histórico:</i> %{text}<extra></extra>', // Texto más explícito aquí
+            'Olas de Calor: <b style="font-size:16px; color:#d35400;">%{y}</b><br>' +
+            '<i>vs Promedio Histórico:</i> %{text}<extra></extra>',
           line: { color: '#e67e22', width: 3, shape: 'spline' },
           marker: { 
             color: '#d35400', 
