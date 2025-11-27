@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arduino servo</title>
+  </head>
+  <body>
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <h1>Arduino servo control</h1>
+    <script>
+      Protobject.Arduino.start();
+
+      let currentSpeed = 0; // Valor inicial de velocidad
+      let targetSpeed = 0; // Valor hacia el que se quiere mover el servo
+      let updateInterval = null; // Variable para almacenar el intervalo de actualización
+
+      // Función para actualizar gradualmente la velocidad
+      function smoothUpdateServo(target) {
+        if (updateInterval) {
+          clearInterval(updateInterval); // Detiene cualquier intervalo previo si está activo
+        }
+
+        updateInterval = setInterval(() => {
+          // Si la velocidad actual es menor que la objetivo, incrementa
+          if (currentSpeed < target) {
+            currentSpeed=currentSpeed+8;
+          }
+          // Si la velocidad actual es mayor que la objetivo, decrementa
+          else if (currentSpeed > target) {
+            currentSpeed=currentSpeed-8;
+          }
+          // Si la velocidad actual es igual a la objetivo, detiene el intervalo
+          else {
+            clearInterval(updateInterval); // Detiene el intervalo cuando se alcanza el objetivo
+            updateInterval = null;
+          }
+
+          // Escribe la velocidad actual al servo
+          Protobject.Arduino.servoWrite({ pin: 5, value: currentSpeed });
+        }, 10); // Actualiza la velocidad cada 10 ms
+      }
+
+      // Evento que se activa al recibir datos
+      Protobject.Core.onReceived((data) => {
+        // Calcula la nueva velocidad objetivo a partir de los datos recibidos
+        cantidad = parseInt(data.cant) * 30.4 + 100;
+
+        // Si la cantidad recibida es 0, detiene el servo continuo. Solo por si acaso
+        if (data.cant == 0) {
+          Protobject.Arduino.contServoWrite({ pin: 6, value: 0 });
+        }
+        // Si hay olas de cakir, mueve el servo gradualmente y ajusta la velocidad del servo continuo
+        else {
+          smoothUpdateServo(cantidad); // Actualiza la velocidad de forma gradual
+          let olas=(data.cant) * 30.4 + 100
+          console.log(olas)
+          Protobject.Arduino.contServoWrite({ pin: 6, value: olas });
+        }
+      });
+    </script>
+  </body>
+</html>

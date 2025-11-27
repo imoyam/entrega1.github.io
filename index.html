@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <title>Olas de calor - Interactivo</title>
-<script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
-<script src="https://unpkg.com/tone/build/Tone.js"></script>
+</head>
+
 <style>
   body {
     font-family: Inter, Roboto, Arial, sans-serif;
@@ -49,8 +49,15 @@
     margin-right: auto;
   }
 </style>
-</head>
 <body>
+  
+<script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+<script src="https://unpkg.com/tone/build/Tone.js"></script>
+  
+<!-- NUEVO, se ejecutan archivos de configuración para Protobject -->
+<script src="https://app.protobject.com/framework/p.js"></script>
+<script src="config.js"></script>
+
 <h2>Número de olas de calor por año — Región Metropolitana (1995-2020)</h2>
 <div id="chart"></div>
 
@@ -68,6 +75,13 @@
 </div>
 
 <script>
+
+// NUEVO, enviar datos iniciales
+Protobject.Core.send({
+    cant: 0,   // valor del punto actual
+    year: 0
+    }).to("arduino.html");
+  
 async function init() {
   const data = await fetch('heatwaves_timeseries.json').then(r=>r.json());
   const meta = await fetch('meta.json').then(r=>r.json());
@@ -150,6 +164,12 @@ async function init() {
       const sizes = x.map((_, j) => (j === i ? 14 : 8));
       await Plotly.restyle('chart', {'marker.size':[sizes]}, [0]);
 
+      // NUEVO, se envía info a arduino.html
+      Protobject.Core.send({
+      cant: y[i],   // valor del punto actual
+      year: x[i]
+      }).to("arduino.html");
+
       if (withSound) {
         const v = y[i];
         const norm = (v - minv) / (maxv - minv);
@@ -163,8 +183,9 @@ async function init() {
           bell.triggerAttackRelease("C6", "16n", "+0.05");
         }
       }
-
-      await new Promise(r => setTimeout(r, 250));
+      // NUEVO, se espera un segundo en vez de 1/4s para
+      // evitar "golpes" en el motor
+      await new Promise(r => setTimeout(r, 1000));
     }
 
     // reset marker size
