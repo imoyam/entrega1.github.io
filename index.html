@@ -26,7 +26,6 @@
         overflow-x: hidden;
       }
 
-      /* Título Principal */
       header {
         text-align: center;
         margin-bottom: 20px;
@@ -49,7 +48,6 @@
         font-weight: 300;
       }
 
-      /* Contenedor del Gráfico */
       #chart-wrapper {
         position: relative;
         width: 90%;
@@ -67,7 +65,6 @@
         height: 100%;
       }
 
-      /* Barra de Progreso */
       #progress-bar {
         position: absolute;
         bottom: 0;
@@ -79,7 +76,6 @@
         z-index: 10;
       }
 
-      /* Controles */
       .controls {
         margin-top: 25px;
         z-index: 5;
@@ -112,18 +108,27 @@
         box-shadow: none;
       }
 
-      /* Pie de página (Credibilidad) */
+      /* Footer mejorado con explicación metodológica */
       footer {
         margin-top: 40px;
         font-size: 0.75rem;
-        color: #999;
+        color: #888;
         text-align: center;
         border-top: 1px solid #eee;
         padding-top: 15px;
         width: 80%;
+        max-width: 800px;
+        line-height: 1.6;
       }
 
-      footer strong { color: #666; }
+      footer strong { color: #555; }
+      
+      .methodology-note {
+        display: block;
+        margin-top: 5px;
+        font-style: italic;
+        color: #d35400;
+      }
 
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
@@ -149,7 +154,7 @@
 
     <footer>
       <strong>Fuente de datos:</strong> Dirección Meteorológica de Chile (DMC).<br>
-      Definición de ola de calor según percentil 90 de temperaturas máximas diarias.
+      <span id="method-text">Cargando datos históricos...</span>
     </footer>
 
     <script>
@@ -163,7 +168,7 @@
       let windNoise, windFilter, windVol;
 
       function setupAudio() {
-        if(windNoise) return; // Evitar reinicializar
+        if(windNoise) return; 
         windNoise = new Tone.Noise("pink");
         windFilter = new Tone.Filter(200, "lowpass");
         windVol = new Tone.Volume(-20);
@@ -177,7 +182,6 @@
         let norm = (value - MIN_VAL) / (MAX_VAL - MIN_VAL);
         norm = Math.max(0, Math.min(1, norm)); 
         
-        // Sonido "Árido": Agudos sibilantes y volumen creciente
         const targetFreq = 200 + (norm * 3000); 
         const targetVol = -25 + (norm * 12); 
         
@@ -193,20 +197,32 @@
         const x = data.map(d => d.year);
         const y = data.map(d => d.heatwaves);
 
-        // ENCONTRAR EL RÉCORD HISTÓRICO PARA ANOTACIÓN
         const maxVal = Math.max(...y);
         const maxIndex = y.indexOf(maxVal);
         const maxYear = x[maxIndex];
 
-        // Estadísticas
+        // 1. CÁLCULO DE PROMEDIO PARA EXPLICACIÓN
         const sum = y.reduce((a, b) => a + b, 0);
-        const avg = (sum / y.length).toFixed(1);
+        const avg = parseFloat((sum / y.length).toFixed(1));
 
+        // 2. ACTUALIZAR EXPLICACIÓN EN FOOTER (CLARIDAD PARA EL USUARIO)
+        const footerText = document.getElementById('method-text');
+        footerText.innerHTML = `
+          Definición de ola de calor según percentil 90 de temperaturas máximas diarias.<br>
+          <span class="methodology-note">
+            Nota: El porcentaje de variación se calcula respecto al <strong>promedio histórico de ${avg} eventos</strong> por año.
+          </span>
+        `;
+
+        // 3. GENERAR TEXTOS INFORMATIVOS
         const customTexts = y.map(val => {
             const diff = ((val - avg) / avg) * 100;
             const diffStr = diff > 0 ? `+${diff.toFixed(0)}%` : `${diff.toFixed(0)}%`;
+            
             let status = val > 30 ? "🔥 CRÍTICO" : (val > 18 ? "⚠️ ALTO" : "✅ NORMAL");
-            return `Promedio Histórico: ${avg}<br>Variación: <b>${diffStr}</b><br><br><span style='font-size:14px; font-weight:bold;'>${status}</span>`;
+            
+            // Texto del tooltip mejorado
+            return `Promedio Histórico (${avg}):<br>Variación: <b>${diffStr}</b><br><br><span style='font-size:14px; font-weight:bold;'>${status}</span>`;
         });
 
         const trace = {
@@ -217,7 +233,7 @@
           hovertemplate: 
             '<b>AÑO %{x}</b><br>' +
             'Eventos: <b style="font-size:16px; color:#d35400;">%{y}</b><br>' +
-            '<i>%{text}</i><extra></extra>',
+            '<i>vs Promedio Histórico:</i> %{text}<extra></extra>', // Texto más explícito aquí
           line: { color: '#e67e22', width: 3, shape: 'spline' },
           marker: { 
             color: '#d35400', 
@@ -225,11 +241,10 @@
             line: { color: 'white', width: 1.5 }
           },
           fill: 'tozeroy',
-          fillcolor: 'rgba(230, 126, 34, 0.08)', // Muy sutil para elegancia
+          fillcolor: 'rgba(230, 126, 34, 0.08)',
           type: 'scatter'
         };
 
-        // ANOTACIONES (Solo el máximo para no ensuciar)
         const annotations = [{
             x: maxYear,
             y: maxVal,
@@ -288,7 +303,6 @@
             const currentVal = y[i];
             const currentYear = x[i];
             
-            // 1. ANIMACIÓN VISUAL
             const isCritical = currentVal > 30;
             const sizeCurrent = isCritical ? 25 : 15;
             
@@ -300,11 +314,9 @@
               'marker.color': [colors]
             }, [0]);
 
-            // 2. BARRA DE PROGRESO
             const progress = ((i + 1) / y.length) * 100;
             progressBar.style.width = `${progress}%`;
 
-            // 3. COMUNICACIÓN ARDUINO
             if (typeof Protobject !== 'undefined') {
                 Protobject.Core.send({
                     cant: currentVal,
@@ -312,7 +324,6 @@
                 }).to("arduino.html");
             }
 
-            // 4. AUDIO REACTIVO
             updateAudio(currentVal);
 
             await new Promise(r => setTimeout(r, STEP_DURATION));
@@ -321,10 +332,9 @@
           windNoise.stop();
           btn.innerText = "Reiniciar Visualización";
           btn.disabled = false;
-          // Dejar la gráfica en estado final limpio
            Plotly.restyle('chart-container', {
-              'marker.size': [8], // Reset tamaño
-              'marker.color': ['#d35400'] // Reset color
+              'marker.size': [8], 
+              'marker.color': ['#d35400'] 
             }, [0]);
            progressBar.style.width = '0%';
         });
