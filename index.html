@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Monitor de Olas de Calor</title>
+    <title>Monitor de Aridez - RM</title>
 
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://app.protobject.com/framework/p.js"></script>
     <script src="config.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
     <style>
       body {
@@ -23,87 +23,147 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
+        overflow-x: hidden;
       }
 
-      /* Título unificado y limpio */
-      h1 {
-        font-weight: 700;
-        font-size: 1.8rem;
-        margin-bottom: 20px;
-        color: #d35400; /* Naranja quemado */
-        text-transform: uppercase;
-        letter-spacing: 1px;
+      /* Título Principal */
+      header {
         text-align: center;
+        margin-bottom: 20px;
+        animation: fadeIn 1.5s ease;
+      }
+
+      h1 {
+        font-weight: 800;
+        font-size: 2rem;
+        margin: 0;
+        color: #d35400;
+        text-transform: uppercase;
+        letter-spacing: -1px;
+      }
+
+      p.intro {
+        color: #666;
+        font-size: 0.95rem;
+        margin-top: 5px;
+        font-weight: 300;
+      }
+
+      /* Contenedor del Gráfico */
+      #chart-wrapper {
+        position: relative;
+        width: 90%;
+        max-width: 1000px;
+        height: 550px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.06);
+        border: 1px solid #eaeaea;
+        overflow: hidden;
       }
 
       #chart-container {
-        width: 90%;
-        max-width: 1000px;
-        height: 600px;
-        box-shadow: 0 15px 40px rgba(0,0,0,0.08);
-        border-radius: 16px;
-        overflow: hidden;
-        background: white;
-        border: 1px solid #eee;
+        width: 100%;
+        height: 100%;
       }
 
+      /* Barra de Progreso */
+      #progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 4px;
+        background-color: #d35400;
+        width: 0%;
+        transition: width 0.5s linear;
+        z-index: 10;
+      }
+
+      /* Controles */
       .controls {
-        margin-top: 30px;
+        margin-top: 25px;
+        z-index: 5;
       }
 
       button {
-        background-color: #2c3e50;
+        background-color: #222;
         color: white;
         border: none;
-        padding: 14px 30px;
-        font-size: 1rem;
+        padding: 12px 35px;
+        font-size: 0.9rem;
         font-weight: 600;
-        border-radius: 50px; /* Botón redondeado moderno */
+        border-radius: 4px;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        text-transform: uppercase;
+        letter-spacing: 1px;
       }
 
       button:hover {
         background-color: #d35400;
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(211, 84, 0, 0.4);
+        box-shadow: 0 10px 20px rgba(211, 84, 0, 0.2);
       }
 
       button:disabled {
-        background-color: #95a5a6;
-        cursor: not-allowed;
+        background-color: #ccc;
+        cursor: default;
         transform: none;
         box-shadow: none;
       }
 
-      /* Ocultar barra de herramientas de Plotly */
-      .modebar {
-        display: none !important;
+      /* Pie de página (Credibilidad) */
+      footer {
+        margin-top: 40px;
+        font-size: 0.75rem;
+        color: #999;
+        text-align: center;
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+        width: 80%;
+      }
+
+      footer strong { color: #666; }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     </style>
   </head>
   <body>
 
-    <h1>Registro Histórico de Aridez (RM)</h1>
+    <header>
+      <h1>Ciclos de Calor</h1>
+      <p class="intro">Evolución de eventos extremos en la Región Metropolitana (1995-2020)</p>
+    </header>
 
-    <div id="chart-container"></div>
+    <div id="chart-wrapper">
+      <div id="chart-container"></div>
+      <div id="progress-bar"></div>
+    </div>
 
     <div class="controls">
-      <button id="startBtn">Iniciar Experiencia Sensorial</button>
+      <button id="startBtn">Iniciar Visualización</button>
     </div>
+
+    <footer>
+      <strong>Fuente de datos:</strong> Dirección Meteorológica de Chile (DMC).<br>
+      Definición de ola de calor según percentil 90 de temperaturas máximas diarias.
+    </footer>
 
     <script>
       // --- CONFIGURACIÓN ---
       const DATA_FILE = 'heatwaves_timeseries.json';
-      const STEP_DURATION = 3000; // 3 segundos por año
-      const MIN_VAL = 3;
+      const STEP_DURATION = 3000; 
+      const MIN_VAL = 3; 
       const MAX_VAL = 50; 
 
       // --- AUDIO ENGINE ---
       let windNoise, windFilter, windVol;
 
       function setupAudio() {
+        if(windNoise) return; // Evitar reinicializar
         windNoise = new Tone.Noise("pink");
         windFilter = new Tone.Filter(200, "lowpass");
         windVol = new Tone.Volume(-20);
@@ -116,8 +176,11 @@
         if (!windNoise) return;
         let norm = (value - MIN_VAL) / (MAX_VAL - MIN_VAL);
         norm = Math.max(0, Math.min(1, norm)); 
-        const targetFreq = 200 + (norm * 2800); 
-        const targetVol = -20 + (norm * 10); 
+        
+        // Sonido "Árido": Agudos sibilantes y volumen creciente
+        const targetFreq = 200 + (norm * 3000); 
+        const targetVol = -25 + (norm * 12); 
+        
         windFilter.frequency.rampTo(targetFreq, STEP_DURATION / 1000);
         windVol.volume.rampTo(targetVol, STEP_DURATION / 1000);
       }
@@ -130,80 +193,92 @@
         const x = data.map(d => d.year);
         const y = data.map(d => d.heatwaves);
 
-        // CALCULO DE ESTADÍSTICAS PARA EL TOOLTIP INTENSO
-        // Calculamos el promedio de olas de calor de todo el periodo
+        // ENCONTRAR EL RÉCORD HISTÓRICO PARA ANOTACIÓN
+        const maxVal = Math.max(...y);
+        const maxIndex = y.indexOf(maxVal);
+        const maxYear = x[maxIndex];
+
+        // Estadísticas
         const sum = y.reduce((a, b) => a + b, 0);
         const avg = (sum / y.length).toFixed(1);
 
-        // Generamos textos personalizados para cada punto
         const customTexts = y.map(val => {
-            const diff = ((val - avg) / avg) * 100; // Porcentaje de diferencia
+            const diff = ((val - avg) / avg) * 100;
             const diffStr = diff > 0 ? `+${diff.toFixed(0)}%` : `${diff.toFixed(0)}%`;
-            
-            let status = "";
-            if (val > 30) status = "🔥 PELIGRO CRÍTICO";
-            else if (val > 18) status = "⚠️ ALTA INTENSIDAD";
-            else status = "✅ NIVEL ESTABLE";
-
-            // Retornamos un string con formato HTML para el tooltip
-            return `Promedio: ${avg}<br>Desviación: <b>${diffStr}</b><br><br><span style='font-size:1.2em; font-weight:bold;'>${status}</span>`;
+            let status = val > 30 ? "🔥 CRÍTICO" : (val > 18 ? "⚠️ ALTO" : "✅ NORMAL");
+            return `Promedio Histórico: ${avg}<br>Variación: <b>${diffStr}</b><br><br><span style='font-size:14px; font-weight:bold;'>${status}</span>`;
         });
 
         const trace = {
           x: x,
           y: y,
           mode: 'lines+markers',
-          text: customTexts, // Aquí inyectamos la info extra
+          text: customTexts,
           hovertemplate: 
             '<b>AÑO %{x}</b><br>' +
-            'Olas de Calor: <b style="font-size:1.1em; color:#d35400;">%{y}</b><br>' +
-            '<i>%{text}</i>' + // Muestra el texto calculado arriba
-            '<extra></extra>', // Oculta la etiqueta extra de Plotly
-          line: { color: '#e67e22', width: 4, shape: 'spline' },
+            'Eventos: <b style="font-size:16px; color:#d35400;">%{y}</b><br>' +
+            '<i>%{text}</i><extra></extra>',
+          line: { color: '#e67e22', width: 3, shape: 'spline' },
           marker: { 
             color: '#d35400', 
-            size: 10,
-            line: { color: 'white', width: 2 }
+            size: 8,
+            line: { color: 'white', width: 1.5 }
           },
           fill: 'tozeroy',
-          fillcolor: 'rgba(230, 126, 34, 0.15)',
+          fillcolor: 'rgba(230, 126, 34, 0.08)', // Muy sutil para elegancia
           type: 'scatter'
         };
 
+        // ANOTACIONES (Solo el máximo para no ensuciar)
+        const annotations = [{
+            x: maxYear,
+            y: maxVal,
+            xref: 'x',
+            yref: 'y',
+            text: '<b>RÉCORD HISTÓRICO</b>',
+            showarrow: true,
+            arrowhead: 2,
+            ax: 0,
+            ay: -40,
+            font: { color: '#c0392b', size: 12, family: 'Inter' },
+            arrowcolor: '#c0392b'
+        }];
+
         const layout = {
-          font: { family: 'Inter, sans-serif' },
-          // Quitamos el título interno del gráfico para evitar duplicados
-          title: false,
+          font: { family: 'Inter, sans-serif', color: '#444' },
+          annotations: annotations,
           xaxis: { 
             showgrid: false, 
-            zeroline: false,
+            zeroline: false, 
             fixedrange: true,
-            tickfont: { size: 14 }
+            tickfont: { size: 12, color: '#888' }
           },
           yaxis: { 
-            title: 'Eventos Registrados',
-            titlefont: { size: 14, weight: 'bold' },
-            gridcolor: '#f0f0f0', 
-            zeroline: false,
+            title: 'N° de Olas de Calor',
+            titlefont: { size: 12, color: '#888' },
+            gridcolor: '#f5f5f5', 
+            zeroline: false, 
             fixedrange: true 
           },
-          margin: { t: 30, r: 50, b: 50, l: 70 },
+          margin: { t: 40, r: 40, b: 40, l: 60 },
           showlegend: false,
           hoverlabel: {
-            bgcolor: "#333", // Fondo oscuro para el tooltip
-            bordercolor: "#333",
-            font: { color: "white", size: 13 } // Texto blanco
+            bgcolor: "#222",
+            bordercolor: "#222",
+            font: { color: "white", family: "Inter" } 
           }
         };
 
-        const config = { displayModeBar: false, responsive: true };
+        const config = { displayModeBar: false, responsive: true, staticPlot: false };
 
         Plotly.newPlot('chart-container', [trace], layout, config);
 
         const btn = document.getElementById('startBtn');
+        const progressBar = document.getElementById('progress-bar');
+
         btn.addEventListener('click', async () => {
           btn.disabled = true;
-          btn.innerText = "Simulando Ambiente...";
+          btn.innerText = "Simulando...";
           
           await Tone.start();
           setupAudio();
@@ -212,23 +287,24 @@
           for (let i = 0; i < y.length; i++) {
             const currentVal = y[i];
             const currentYear = x[i];
-
-            // Animación visual (Punto rojo grande y tooltip automático si se pudiera, pero Plotly no soporta tooltip forzado fácil)
-            // Hacemos el punto GIGANTE cuando es un año crítico
-            const sizeCurrent = currentVal > 30 ? 35 : 20; // Más dramatismo visual
             
-            const sizes = x.map((_, j) => (j === i ? sizeCurrent : 10));
-            const colors = x.map((_, j) => (j === i ? '#c0392b' : '#d35400')); 
+            // 1. ANIMACIÓN VISUAL
+            const isCritical = currentVal > 30;
+            const sizeCurrent = isCritical ? 25 : 15;
             
-            // Efecto de parpadeo en la línea si es crítico (opcional, sutil cambio de opacidad)
-            const opacity = currentVal > 30 ? 0.6 : 0.15;
+            const sizes = x.map((_, j) => (j === i ? sizeCurrent : 8));
+            const colors = x.map((_, j) => (j === i ? (isCritical ? '#c0392b' : '#e67e22') : '#edbb99'));
 
             Plotly.restyle('chart-container', {
               'marker.size': [sizes],
-              'marker.color': [colors],
-              'fillcolor': [`rgba(230, 126, 34, ${opacity})`]
+              'marker.color': [colors]
             }, [0]);
 
+            // 2. BARRA DE PROGRESO
+            const progress = ((i + 1) / y.length) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            // 3. COMUNICACIÓN ARDUINO
             if (typeof Protobject !== 'undefined') {
                 Protobject.Core.send({
                     cant: currentVal,
@@ -236,14 +312,21 @@
                 }).to("arduino.html");
             }
 
+            // 4. AUDIO REACTIVO
             updateAudio(currentVal);
 
             await new Promise(r => setTimeout(r, STEP_DURATION));
           }
 
           windNoise.stop();
-          btn.innerText = "Reiniciar Experiencia";
+          btn.innerText = "Reiniciar Visualización";
           btn.disabled = false;
+          // Dejar la gráfica en estado final limpio
+           Plotly.restyle('chart-container', {
+              'marker.size': [8], // Reset tamaño
+              'marker.color': ['#d35400'] // Reset color
+            }, [0]);
+           progressBar.style.width = '0%';
         });
       }
 
